@@ -1,2 +1,2 @@
-# lets-go-mset9
-Go Based Implementation of MSET9 Setup
+# Let's Go MSET9
+Setup MSET9 with one file!
