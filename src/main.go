@@ -34,8 +34,8 @@ var homeMenuExtdata = []int{0x8F, 0x98, 0x82, 0xA1, 0xA9, 0xB1} // U, E, J, C, K
 var miiMakerExtdata = []int{0x217, 0x227, 0x207, 0x267, 0x277, 0x287}
 
 var haxs = [2]string{ // Old and New
-	"쀁ʏ＜į餑䠋䚅敩ꄇ∁䬄䞘䙨䙙ꫀᰗ䙃䰂䞠䞸ꁱࠅ캙ࠄsdmc退ࠊb9",
-	"쀁ʏ＜į餑䠋䚅敩ꄇ∁䬄䞘䙨䙙ꫀᰗ䙃䰂䞠䞸ꁱࠅ칝ࠄsdmc退ࠊb9",
+	"￿﫿餑䠇䚅敩ꄈ∁䬅䞘䙨䙙ꫀᰗ䙃䰃䞠䞸退ࠊꁱࠅ캙ࠄsdmc退ࠊb9",
+	"￿﫿餑䠇䚅敩ꄈ∁䬅䞘䙨䙙ꫀᰗ䙃䰃䞠䞸退ࠊꁱࠅ칝ࠄsdmc退ࠊb9",
 }
 
 func main() {
@@ -43,6 +43,9 @@ func main() {
 	window = a.NewWindow("MSET9")
 	window.Resize(fyne.NewSize(400, 400))
 	window.CenterOnScreen()
+	window.SetOnClosed(func() {
+		a.Quit()
+	})
 
 	mset9Screen = container.New(layout.NewVBoxLayout())
 
@@ -57,12 +60,15 @@ func setupStart() {
 	startHeader.Alignment = fyne.TextAlignCenter
 	startReading := widget.NewLabel("This application will allow to run MSET9, an exploit for the 3DS. When you're ready, select your SD when asked.")
 
-	dirSel = a.NewWindow("Select your SD")
-	dirSel.Resize(fyne.NewSize(700, 500))
 	startScreen = container.New(layout.NewVBoxLayout(), startHeader, startReading, widget.NewButton("CHOOSE SD", func() {
+		dirSel = a.NewWindow("Select your SD")
+		dirSel.Resize(fyne.NewSize(700, 500))
+		dirSel.SetOnClosed(func() {
+			dirSel.Close()
+		})
 		dirSel.Show()
 		dialog.NewFolderOpen(func(dir fyne.ListableURI, err error) {
-			dirSel.Hide()
+			dirSel.Close()
 			if dir == nil {
 				fucked("SD Selection Cancelled", window)
 				return
@@ -131,7 +137,6 @@ func setupStart() {
 						id1 = filepath.Join(id0, entry.Name())
 					}
 				}
-				dirSel.Close()
 
 				if haxId1Present || userId1Edited {
 					if haxId1Present && userId1Edited { // On close and reopen
@@ -187,6 +192,17 @@ func setupConsoleSelect() *fyne.Container {
 
 	return container.New(layout.NewVBoxLayout(), widget.NewLabel("What type of 3DS do you have? (See image for reference)"), img, selection)
 
+}
+
+func isSdPresent(sdRoot string, ret func()) func() {
+	_, err := os.ReadDir(sdRoot)
+	if !os.IsNotExist(err) {
+		return ret
+	} else {
+		return func() {
+			fucked("SD not inserted! Insert it back in before continuing.", window)
+		}
+	}
 }
 
 func fucked(mes string, window fyne.Window) error {

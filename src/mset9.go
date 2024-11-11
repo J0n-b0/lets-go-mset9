@@ -12,10 +12,12 @@ import (
 )
 
 func mset9() { // Main MSET9 Page
-	_, err := os.OpenFile(filepath.Join(id1, "extdata", "002F003A.txt"), os.O_RDONLY, 0644)
-	if os.IsExist(err) {
+	data, err := os.OpenFile(filepath.Join(haxId1, "extdata", "002F003A.txt"), os.O_RDONLY, 0644)
+	data.Close()
+	if !os.IsNotExist(err) { // Yes this is the correct way to check this .-.
 		injectionStatus = "Yes"
 	}
+
 	mset9Header := widget.NewLabel(fmt.Sprintf(`
 	System Type: %s
 	Inital Setup Started?: %s
@@ -23,15 +25,27 @@ func mset9() { // Main MSET9 Page
 	
 	Setup MSET9 - Start MSET9 process.
 	Inject Trigger File - Create exploit trigger. Do NOT enable this before specified.
+	Remove Trigger File - Removes exploit trigger. Useful if you mess up somewhere.
 	Remove MSET9 - Remove MSET9 from SD. Don't forget this step. 
 	`, sysType, mset9Started, injectionStatus))
 
 	mset9Screen.RemoveAll()
 	mset9Screen.Add(mset9Header)
-	mset9Screen.Add(widget.NewButton("Setup MSET9", setupMset9))
-	mset9Screen.Add(widget.NewButton("Inject Trigger File", inject))
+	mset9Screen.Add(widget.NewButton("Setup MSET9", func() {
+		res := isSdPresent(sdRoot, func() { setupMset9() })
+		res()
+	}))
+	mset9Screen.Add(widget.NewButton("Inject Trigger File", func() {
+		res := isSdPresent(sdRoot, func() { inject() })
+		res()
+	}))
+	mset9Screen.Add(widget.NewButton("Remove Trigger File", func() {
+		res := isSdPresent(sdRoot, func() { deject() })
+		res()
+	}))
 	mset9Screen.Add(widget.NewButton("Remove MSET9", func() {
-		removeMset9(true, true)
+		res := isSdPresent(sdRoot, func() { removeMset9(true, true) })
+		res()
 		dialog.ShowInformation("Success!", "Enjoy your console :)", window)
 	}))
 
@@ -86,6 +100,7 @@ func setupMset9() {
 
 	mset9Started = "Yes"
 	dialog.ShowInformation("Success!", "You may now continue the guide.", window)
+	mset9()
 }
 
 func inject() { // Includes main sanity checks
@@ -129,39 +144,40 @@ func inject() { // Includes main sanity checks
 	}
 
 	// Extdata Checks
-	_, err = os.ReadDir(filepath.Join(haxId1, "exdata"))
+	_, err = os.ReadDir(filepath.Join(haxId1, "extdata"))
 	if os.IsNotExist(err) {
 		uhoh = append(uhoh, "- Extdata folder missing\n")
 		sanityBroken = true
 	} else {
-		extdCheck, err := os.ReadDir(filepath.Join(haxId1, "exdata", "00000000"))
+		extdCheck, err := os.ReadDir(filepath.Join(haxId1, "extdata", "00000000"))
 		if os.IsNotExist(err) {
 			uhoh = append(uhoh, "- Home Menu extdata not found\n")
 			uhoh = append(uhoh, "- Mii Maker extdata not found\n")
 			sanityBroken = true
 		} else {
+			homeFound := false
+			miiMakerFound := false
 			for _, data := range extdCheck {
-				found := false
 				// Home Menu
 				for _, extdata := range homeMenuExtdata {
-					if data.Name() == string(extdata) {
-						found = true
+					if data.Name() == fmt.Sprintf("%08x", extdata) {
+						homeFound = true
 					}
-				}
-				if !found {
-					uhoh = append(uhoh, "- Home Menu extdata not found\n")
-					sanityBroken = true
 				}
 				// Mii Maker
 				for _, extdata := range miiMakerExtdata {
-					if data.Name() == string(extdata) {
-						found = true
+					if data.Name() == fmt.Sprintf("%08x", extdata) {
+						miiMakerFound = true
 					}
 				}
-				if !found {
-					uhoh = append(uhoh, "- Mii Maker extdata not found\n")
-					sanityBroken = true
-				}
+			}
+			if !homeFound {
+				uhoh = append(uhoh, "- Home Menu extdata not found\n")
+				sanityBroken = true
+			}
+			if !miiMakerFound {
+				uhoh = append(uhoh, "- Mii Maker extdata not found\n")
+				sanityBroken = true
 			}
 		}
 	}
@@ -170,16 +186,24 @@ func inject() { // Includes main sanity checks
 		for _, data := range uhoh {
 			final += fmt.Sprintf("\n%s", data)
 		}
-		final = fmt.Sprintf(
-			`Requirements to inject not met!
-
-The following sanity checks failed:
-		%s`, final)
+		final = fmt.Sprintf("Requirements to inject not met!\n\nThe following sanity checks failed:\n%s", final)
 
 		fucked(final, window)
 	} else {
-		os.WriteFile(filepath.Join(haxId1, "extdata", "002F003A.txt"), []byte("get haxxed says I, the swordbearer j0n_b0!\n\n\n\nPS Bonk Gabbi"), 0644)
+		os.WriteFile(filepath.Join(haxId1, "extdata", "002F003A.txt"), []byte("get haxxed says I, the swordbearer j0n_b0! (sword provided by zoogie)\n\n\n\n\n\n\n\n\n\n\n\n\n\nPS Bonk Gabbi"), 0644)
 		injectionStatus = "Yes"
+	}
+	mset9()
+}
+
+func deject() {
+	data, err := os.OpenFile(filepath.Join(haxId1, "extdata", "002F003A.txt"), os.O_RDWR, 0644)
+	data.Close()
+	if !os.IsNotExist(err) {
+		os.Remove(filepath.Join(haxId1, "extdata", "002F003A.txt"))
+		injectionStatus = "No"
+	} else {
+		fucked("Trigger file not injected! Inject before using this.", window)
 	}
 	mset9()
 }
@@ -193,4 +217,7 @@ func removeMset9(remHax bool, editUserId1 bool) {
 	if editUserId1 {
 		os.Rename(id1+"_user-id1", id1)
 	}
+	mset9Started = "No"
+	injectionStatus = "No"
+	mset9()
 }
